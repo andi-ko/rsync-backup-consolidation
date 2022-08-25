@@ -14,13 +14,13 @@ for all b < c
 
 #>
 
-$diffPath = "G:\Backup.Profildaten";
+$diffPath = "R:\Backup.Home";
 
-$firstConsolidationDate = (Get-Date) - (New-TimeSpan -Days 30);
+$firstConsolidationDate = (Get-Date) - (New-TimeSpan -Days 100);
 
 $nextConsolidationDate = $firstConsolidationDate;
 
-$backupInterval = New-TimeSpan -Days 14;
+$backupInterval = New-TimeSpan -Days 7;
 
 $currentConsolidatablePaths = New-Object System.Collections.Arraylist;
 
@@ -28,26 +28,28 @@ $currentConsolidationPath;
 
 # iterate diffs older than target date in ascending order
 
-Get-ChildItem -Path $diffPath -Directory | Sort-Object -Descending | % {        
+$paths = Get-ChildItem -Path $diffPath -Directory | Sort-Object -Descending
 
-    $currentDate = Get-Date -Date "$($_.Name.substring(0,$_.Name.IndexOf(" ")))";
+foreach ($_ in $paths) {        
+
+    $currentDate = [datetime]::ParseExact($_.Name, "yyyy-MM-dd HH-mm-ss", $null);
 
     if ($currentDate -le $firstConsolidationDate) {
 
         # consolidate if
-        if ($currentDate -le $nextConsolidationDate) {
-
-            Write-Host "consolidate on $_";
+        if ($currentDate -le $nextConsolidationDate -or $_ -eq $paths[-1]) {
 
             if ($currentConsolidatablePaths.Count -gt 0) {
+
+                Write-Host "Consolidate on $currentConsolidationPath";
 
                 $currentConsolidatablePaths.Reverse();
 
                 foreach ($path in $currentConsolidatablePaths) {
 
-                    Write-Host "copy $path";
+                    Write-Host "Copy $path";
 
-                    $rcOptions = @("/E","/R:0","/W:0","/MOVE","/XO");
+                    $rcOptions = @("/E","/R:0","/W:0","/MOV","/XO");
                     $rcArgs = @("$path","$currentConsolidationPath",$rcOptions);
                     robocopy @rcArgs | Out-Null;
 
@@ -59,7 +61,10 @@ Get-ChildItem -Path $diffPath -Directory | Sort-Object -Descending | % {
 
             $currentConsolidationPath = $_.FullName;
 
-            $nextConsolidationDate = $nextConsolidationDate - $backupInterval;
+            $nextConsolidationDate = $currentDate - $backupInterval;
+
+            Write-Host "Consolidate until $nextConsolidationDate";
+
         }
         else {
             Write-Host "add $_";
